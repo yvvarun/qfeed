@@ -2,14 +2,15 @@ import pika
 import requests
 import json
 
-class publisher:
-    def __init__(self, host='localhost', port=5672, user='guest', passwd='guest'):
+class Publisher:
+    def __init__(self, host='localhost', tcp_port=5672, management_port=15672,
+            user='guest', passwd='guest'):
         self.HOST = host
         self.TCP_PORT = port
         self.USER = user
         self.PASSWD = passwd
         self.EXCHANGE = 'questions'
-        self.MANAGEMENT_PORT = 15672
+        self.MANAGEMENT_PORT = management_port
 
         credentials = pika.PlainCredentials(self.USER, self.PASSWD)
         self.connection = pika.BlockingConnection(
@@ -50,7 +51,7 @@ class publisher:
                       properties=pika.BasicProperties(delivery_mode = 2))
 
 def parse_input(choice):
-    pub = publisher()
+    pub = Publisher()
     if choice == 1:
         print(pub.get_channels())
     elif choice == 2:

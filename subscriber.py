@@ -2,7 +2,7 @@ import pika
 import requests
 import json
 
-class consumer:
+class Subscriber:
     def __init__(self, host='localhost', port=5672, user='guest', passwd='guest'):
         self.HOST = host
         self.TCP_PORT = port
@@ -42,14 +42,14 @@ class consumer:
         self.channel.start_consuming()
 
 def parse_input(choice):
-    con = consumer()
+    sub = Subscriber()
     if choice == 1:
-        print(con.get_channels())
+        print(sub.get_channels())
     elif choice == 2:
-      channel_names = input("Enter channels to subscribe to (comma separated): ")
-      channel_list = channel_names.split(',')
-      con.subscribe(channel_list)
-      con.start_consuming()
+        channel_names = input("Enter channels to subscribe to (comma separated): ")
+        channel_list = channel_names.split(',')
+        sub.subscribe(channel_list)
+        sub.start_consuming()
 
 if __name__ == "__main__":
     print("1. Get channels")
