@@ -26,7 +26,6 @@ class Broker:
         self.__cfg_dict['password']        = self.__parser.get_password()
         self.__cfg_dict['host']            = self.__parser.get_host()
         self.__cfg_dict['tcp_port']        = self.__parser.get_tcp_port()
-        self.__cfg_dict['management_port'] = self.__parser.get_management_port()
         self.__cfg_dict['exchange']        = self.__parser.get_exchange()
         self.__cfg_dict['channels']        = self.__parser.get_channels().split(',')
 
@@ -38,10 +37,10 @@ class Broker:
         try:
             credentials = pika.PlainCredentials(self.__cfg_dict['user'],
                                                 self.__cfg_dict['password'])
-            params = pika.ConnectionParameters(self.__cfg_dict['host'],
+            conn_params = pika.ConnectionParameters(self.__cfg_dict['host'],
                                                self.__cfg_dict['tcp_port'],
                                                '/', credentials)
-            self.__connection = pika.BlockingConnection(params)
+            self.__connection = pika.BlockingConnection(conn_params)
             self.__channel = self.__connection.channel()
             self.__channel.exchange_declare(exchange=self.__cfg_dict['exchange'],
                                         exchange_type='direct', durable=True)
@@ -91,7 +90,7 @@ def test():
         print("parse failed for %s" % (config_file_name))
 
     """
-    test Broker api
+    test Broker API
     """
     broker = Broker()
     broker.configure()

@@ -75,6 +75,12 @@ class ConfigParser:
         else:
             return ""
 
+    def get_email(self):
+        if "email" in self.__config:
+            return (str(self.__config['email']))
+        else:
+            return ""
+
 
 ###############################################################################
 # TEST SECTION

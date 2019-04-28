@@ -2,70 +2,118 @@ import pika
 import requests
 import json
 
-class Publisher:
-    def __init__(self, host='localhost', tcp_port=5672, management_port=15672,
-            user='guest', passwd='guest'):
-        self.HOST = host
-        self.TCP_PORT = port
-        self.USER = user
-        self.PASSWD = passwd
-        self.EXCHANGE = 'questions'
-        self.MANAGEMENT_PORT = management_port
+from modules.config_parser import ConfigParser
 
-        credentials = pika.PlainCredentials(self.USER, self.PASSWD)
-        self.connection = pika.BlockingConnection(
-            pika.ConnectionParameters(self.HOST, self.TCP_PORT,
-                '/', credentials))
-        self.channel = self.connection.channel()
+class Publisher:
+    def __init__(self):
+        self.__cfg_dict = dict()
+        self.__cfg_file_path = 'configs/publisher.ini'
+        self.__parser = ConfigParser()
+        self.__parse_config()
+
+    def __parse_config(self):
+        """
+        parses config file and stores configs in a dict
+        """
+
+        self.__cfg_dict = dict()
+        self.__parser = ConfigParser()
+        ret = self.__parser.parse(self.__cfg_file_path)
+        if ret == False:
+            print('Failed to parse {cfg_file}, exiting'
+                    .format(cfg_file=self.__cfg_file_path))
+            sys.exit(-1)
+
+        self.__cfg_dict['user']            = self.__parser.get_user()
+        self.__cfg_dict['password']        = self.__parser.get_password()
+        self.__cfg_dict['host']            = self.__parser.get_host()
+        self.__cfg_dict['tcp_port']        = self.__parser.get_tcp_port()
+        self.__cfg_dict['management_port'] = self.__parser.get_management_port()
 
     def __serialize_msg(self, question, subscribers):
         dict = {}
         dict['question'] = question
-        dict['subscribers'] = subscribers
+        dict['requested_subscribers'] = subscribers
         data = json.dumps(dict)
         return data
 
-    # returns a list of channels
-    def get_channels(self):
-        url = 'http://%s:%s/api/queues' % (self.HOST, self.MANAGEMENT_PORT)
-        r = requests.get(url, auth=(self.USER, self.PASSWD))
+    def connect(self):
+        """
+        connects to a rabbitmq broker
+        """
+
+        credentials = pika.PlainCredentials(self.__cfg_dict['user'],
+                                            self.__cfg_dict['password'])
+        conn_params = pika.ConnectionParameters(self.__cfg_dict['host'],
+                                                self.__cfg_dict['tcp_port'],
+                                                '/', credentials)
+        self.__connection = pika.BlockingConnection(conn_params)
+        self.__channel = self.__connection.channel()
+
+
+    def get_channels(self) -> list:
+        """
+        returns a list of channels available
+        to which the user can publish a question to
+        """
+
+        url = 'http://%s:%s/api/queues' % (self.__cfg_dict['host'],
+                self.__cfg_dict['management_port'])
+        r = requests.get(url, auth=(self.__cfg_dict['user'],
+            self.__cfg_dict['password']))
         res = []
         for json in r.json():
             res.append(json["name"])
         return res
 
-    # returns a list of subscribers
-    def get_subscribers(self):
-        url = 'http://%s:%s/api/consumers' % (self.HOST, self.MANAGEMENT_PORT)
-        r = requests.get(url, auth=(self.USER, self.PASSWD))
+    def get_subscribers(self) -> list:
+        """
+        returns a list of subscribers available
+        """
+
+        url = 'http://%s:%s/api/consumers' % (self.__cfg_dict['host'],
+                self.__cfg_dict['management_port'])
+        r = requests.get(url, auth=(self.__cfg_dict['user'],
+                                    self.__cfg_dict['password']))
         res = []
         for json in r.json():
             res.append(json["consumer_tag"])
         return res
 
-    def publish_question(self, channel_name, question, subscribers = "any"):
+    def publish_question(self, exchange, channel_name, question,
+            subscribers = "any"):
         data = self.__serialize_msg(question, subscribers)
-        self.channel.basic_publish(exchange=self.EXCHANGE,
+        print("routing key is {routing_key}".format(routing_key=channel_name))
+        self.__channel.basic_publish(exchange=exchange,
                       routing_key=channel_name,
                       body=data,
                       properties=pika.BasicProperties(delivery_mode = 2))
+        print("published")
 
-def parse_input(choice):
+def test():
+    """
+    test config parser
+    """
+    p = ConfigParser()
+    config_file_name = "configs/publisher.ini"
+    if p.parse(config_file_name):
+        print(p.get_host())
+        print(p.get_tcp_port())
+
+    """
+    test Publisher API
+    """
     pub = Publisher()
-    if choice == 1:
-        print(pub.get_channels())
-    elif choice == 2:
-        print(pub.get_subscribers())
-    elif choice == 3:
+    pub.connect()
+    channels = pub.get_channels()
+    print(channels)
+    subscribers = pub.get_subscribers()
+    print(subscribers)
+    if len(channels) > 0 and len(subscribers) > 0:
+        exchange = 'questions'
         channel_name = 'machine-learning'
         question = 'What is machine learning?'
-        subscribers = ['subscriber_1']
-        pub.publish_question(channel_name, question, subscribers)
+        pub.publish_question(exchange, channels[0], question, subscribers[0])
 
 if __name__ == "__main__":
-    print("1. Get channels")
-    print("2. Get subscribers")
-    print("3. Publish question")
-    choice = int(input("Enter your choice: "))
-    parse_input(choice)
-
+    test()
